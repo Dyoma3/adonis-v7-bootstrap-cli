@@ -1,0 +1,27 @@
+{
+  "name": "adonis-v7-bootstrap-cli",
+  "version": "0.1.0",
+  "description": "Bootstrap opinionated AdonisJS v7 projects with PostgreSQL, Zod, Bouncer, and agent context",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "adonis-v7-bootstrap": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepack": "npm run build"
+  },
+  "engines": {
+    "node": ">=24",
+    "npm": ">=11"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^6.0.3"
+  }
+}
