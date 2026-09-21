@@ -7,6 +7,7 @@ const baseOptions = {
   parentDirectory: '/tmp/projects',
   developmentDatabase: 'inventory_dev',
   testDatabase: 'inventory_test',
+  installNuxt: false,
   skillsRepository: '/Users/dinko/agent-skills',
   dryRun: true,
 }
@@ -26,5 +27,16 @@ test('moves all backend work into apps/backend for monorepos', () => {
 
   assert.equal(paths.backendRoot, '/tmp/projects/inventory/apps/backend')
   assert.equal(paths.backendPrefix, 'apps/backend')
+  assert.equal(paths.frontendRoot, '/tmp/projects/inventory/apps/frontend')
+  assert.equal(paths.frontendPrefix, 'apps/frontend')
   assert.ok(plan.includes('Install and configure @adonisjs/bouncer'))
+  assert.ok(plan.includes('Leave apps/frontend without a configured framework'))
+})
+
+test('adds Nuxt and its frontend context to the monorepo plan', () => {
+  const options = { ...baseOptions, kit: 'api-monorepo', installNuxt: true }
+  const plan = buildPlan(options)
+
+  assert.ok(plan.includes('Install Nuxt in /tmp/projects/inventory/apps/frontend'))
+  assert.ok(plan.includes('Create frontend agent context and add both nuxt-frontend skill subtrees'))
 })

@@ -13,6 +13,7 @@ test('parses a fully non-interactive invocation', () => {
     'billing_dev',
     '--test-db',
     'billing_test',
+    '--nuxt',
     '--dry-run',
   ])
 
@@ -21,7 +22,21 @@ test('parses a fully non-interactive invocation', () => {
   assert.equal(options.kit, 'api-monorepo')
   assert.equal(options.developmentDatabase, 'billing_dev')
   assert.equal(options.testDatabase, 'billing_test')
+  assert.equal(options.installNuxt, true)
   assert.equal(options.dryRun, true)
+})
+
+test('supports explicitly skipping Nuxt', () => {
+  const options = parseCliArgs(['billing-api', '--kit', 'api-monorepo', '--no-nuxt'])
+
+  assert.equal(options.installNuxt, false)
+})
+
+test('rejects conflicting Nuxt flags', () => {
+  assert.throws(
+    () => parseCliArgs(['billing-api', '--nuxt', '--no-nuxt']),
+    /either --nuxt or --no-nuxt/
+  )
 })
 
 test('rejects an unknown starter kit', () => {

@@ -56,9 +56,22 @@ async function promptKit(readline: Interface) {
   }
 }
 
+async function promptConfirmation(readline: Interface, message: string) {
+  while (true) {
+    const answer = (await readline.question(`${message} [y/N]: `)).trim().toLowerCase()
+    if (!answer || answer === 'n' || answer === 'no') return false
+    if (answer === 'y' || answer === 'yes') return true
+    console.error('Enter yes or no')
+  }
+}
+
 export async function resolveOptions(parsed: ParsedOptions): Promise<BootstrapOptions> {
   const needsPrompt =
-    !parsed.projectName || !parsed.kit || !parsed.developmentDatabase || !parsed.testDatabase
+    !parsed.projectName ||
+    !parsed.kit ||
+    !parsed.developmentDatabase ||
+    !parsed.testDatabase ||
+    (parsed.kit === 'api-monorepo' && parsed.installNuxt === undefined)
   if (needsPrompt) requireInteractive('required options')
 
   const readline = needsPrompt
@@ -76,6 +89,18 @@ export async function resolveOptions(parsed: ParsedOptions): Promise<BootstrapOp
 
     let kit = parsed.kit
     if (!kit) kit = await promptKit(readline!)
+
+    let installNuxt = parsed.installNuxt
+    if (kit === 'api-monorepo') {
+      if (installNuxt === undefined) {
+        installNuxt = await promptConfirmation(readline!, 'Install Nuxt in apps/frontend?')
+      }
+    } else {
+      if (installNuxt !== undefined) {
+        throw new Error('--nuxt and --no-nuxt are only valid with the api-monorepo kit')
+      }
+      installNuxt = false
+    }
 
     const resolvedProjectName = projectName
     const resolvedKit = kit
@@ -120,6 +145,7 @@ export async function resolveOptions(parsed: ParsedOptions): Promise<BootstrapOp
       kit: resolvedKit,
       developmentDatabase: resolvedDevelopmentDatabase,
       testDatabase: resolvedTestDatabase,
+      installNuxt,
       skillsRepository: resolve(parsed.skillsRepository),
       dryRun: parsed.dryRun,
     }

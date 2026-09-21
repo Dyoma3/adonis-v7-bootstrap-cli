@@ -1,4 +1,4 @@
-import { access, readdir } from 'node:fs/promises'
+import { access, mkdir, readdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { runCommand } from './command.js'
 import { configureProjectFiles } from './files.js'
@@ -6,16 +6,20 @@ import type { BootstrapOptions, ProjectPaths } from './types.js'
 
 export function resolveProjectPaths(options: BootstrapOptions): ProjectPaths {
   const projectRoot = resolve(options.parentDirectory, options.projectName)
-  const backendPrefix = options.kit === 'api-monorepo' ? 'apps/backend' : ''
+  const isMonorepo = options.kit === 'api-monorepo'
+  const backendPrefix = isMonorepo ? 'apps/backend' : ''
+  const frontendPrefix = isMonorepo ? 'apps/frontend' : undefined
   return {
     projectRoot,
     backendPrefix,
     backendRoot: backendPrefix ? join(projectRoot, backendPrefix) : projectRoot,
+    frontendPrefix,
+    frontendRoot: frontendPrefix ? join(projectRoot, frontendPrefix) : undefined,
   }
 }
 
 export function buildPlan(options: BootstrapOptions, paths = resolveProjectPaths(options)) {
-  return [
+  const plan = [
     `Project: ${paths.projectRoot}`,
     `Backend: ${paths.backendRoot}`,
     `Kit: ${options.kit}`,
@@ -29,6 +33,15 @@ export function buildPlan(options: BootstrapOptions, paths = resolveProjectPaths
     'Create both PostgreSQL databases with createdb',
     'Create Codex/Claude context and add both backend skill subtrees',
   ]
+
+  if (options.installNuxt) {
+    plan.splice(7, 0, `Install Nuxt in ${paths.frontendRoot}`)
+    plan.push('Create frontend agent context and add both nuxt-frontend skill subtrees')
+  } else if (options.kit === 'api-monorepo') {
+    plan.splice(7, 0, 'Leave apps/frontend without a configured framework')
+  }
+
+  return plan
 }
 
 async function exists(path: string) {
@@ -61,8 +74,44 @@ async function databaseExists(name: string) {
   return output.split(/\s+/).includes('1')
 }
 
-function subtreePrefix(paths: ProjectPaths, agentDirectory: '.agents' | '.claude') {
-  return [paths.backendPrefix, agentDirectory, 'skills/adonis-v7-backend'].filter(Boolean).join('/')
+function subtreePrefix(
+  workspacePrefix: string,
+  agentDirectory: '.agents' | '.claude',
+  skillName: string
+) {
+  return [workspacePrefix, agentDirectory, `skills/${skillName}`].filter(Boolean).join('/')
+}
+
+async function addSkillSubtrees(
+  options: BootstrapOptions,
+  paths: ProjectPaths,
+  skillName: string,
+  workspacePrefix: string
+) {
+  const splitCommit = await runCommand(
+    'git',
+    ['-C', options.skillsRepository, 'subtree', 'split', `--prefix=${skillName}`, 'HEAD'],
+    { capture: true }
+  )
+
+  if (!/^[0-9a-f]{40}$/.test(splitCommit)) {
+    throw new Error(`Could not resolve ${skillName} subtree commit: ${splitCommit}`)
+  }
+
+  for (const agentDirectory of ['.agents', '.claude'] as const) {
+    await runCommand(
+      'git',
+      [
+        'subtree',
+        'add',
+        `--prefix=${subtreePrefix(workspacePrefix, agentDirectory, skillName)}`,
+        options.skillsRepository,
+        splitCommit,
+        '--squash',
+      ],
+      { cwd: paths.projectRoot }
+    )
+  }
 }
 
 async function configureGitAndSubtrees(options: BootstrapOptions, paths: ProjectPaths) {
@@ -96,36 +145,10 @@ async function configureGitAndSubtrees(options: BootstrapOptions, paths: Project
     })
   }
 
-  const splitCommit = await runCommand(
-    'git',
-    [
-      '-C',
-      options.skillsRepository,
-      'subtree',
-      'split',
-      '--prefix=adonis-v7-backend',
-      'HEAD',
-    ],
-    { capture: true }
-  )
+  await addSkillSubtrees(options, paths, 'adonis-v7-backend', paths.backendPrefix)
 
-  if (!/^[0-9a-f]{40}$/.test(splitCommit)) {
-    throw new Error(`Could not resolve adonis-v7-backend subtree commit: ${splitCommit}`)
-  }
-
-  for (const agentDirectory of ['.agents', '.claude'] as const) {
-    await runCommand(
-      'git',
-      [
-        'subtree',
-        'add',
-        `--prefix=${subtreePrefix(paths, agentDirectory)}`,
-        options.skillsRepository,
-        splitCommit,
-        '--squash',
-      ],
-      { cwd: paths.projectRoot }
-    )
+  if (options.installNuxt && paths.frontendPrefix) {
+    await addSkillSubtrees(options, paths, 'nuxt-frontend', paths.frontendPrefix)
   }
 }
 
@@ -147,6 +170,12 @@ export async function bootstrap(options: BootstrapOptions) {
   if (!(await exists(join(options.skillsRepository, 'adonis-v7-backend/SKILL.md')))) {
     throw new Error(`Missing adonis-v7-backend skill in ${options.skillsRepository}`)
   }
+  if (
+    options.installNuxt &&
+    !(await exists(join(options.skillsRepository, 'nuxt-frontend/SKILL.md')))
+  ) {
+    throw new Error(`Missing nuxt-frontend skill in ${options.skillsRepository}`)
+  }
 
   await runCommand(
     'npm',
@@ -163,6 +192,16 @@ export async function bootstrap(options: BootstrapOptions) {
 
   if (!(await exists(join(paths.backendRoot, 'package.json')))) {
     throw new Error(`Could not find the generated backend at ${paths.backendRoot}`)
+  }
+
+  if (options.installNuxt && paths.frontendRoot) {
+    await mkdir(paths.frontendRoot, { recursive: true })
+    await runCommand('npm', ['create', 'nuxt@latest', '.', '--force'], {
+      cwd: paths.frontendRoot,
+    })
+    if (!(await exists(join(paths.frontendRoot, 'package.json')))) {
+      throw new Error(`Could not find the generated Nuxt frontend at ${paths.frontendRoot}`)
+    }
   }
 
   await runCommand(
@@ -187,7 +226,7 @@ export async function bootstrap(options: BootstrapOptions) {
   await configureGitAndSubtrees(options, paths)
 
   console.log('\nBootstrap complete')
-  console.log(buildPlan(options, paths).slice(0, 6).map((line) => `- ${line}`).join('\n'))
+  console.log(buildPlan(options, paths).map((line) => `- ${line}`).join('\n'))
   console.log('- Migrations were not run')
   console.log('- Project tests were not run')
 

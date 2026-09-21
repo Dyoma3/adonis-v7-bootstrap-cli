@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import test from 'node:test'
 import {
+  configureProjectFiles,
   databaseConfigTemplate,
   ensureLines,
   requestValidatorSource,
@@ -43,4 +47,49 @@ test('adds ignore entries without duplicating them', () => {
 test('keeps the Luka Zod request validator contract', () => {
   assert.match(requestValidatorSource, /schema\.safeParse\(data\)/)
   assert.match(requestValidatorSource, /E_HTTP_EXCEPTION\.invoke\(\{ errors: parse\.error\.issues \}, 422\)/)
+})
+
+test('creates scoped Nuxt context for both agents in a monorepo', async (context) => {
+  const projectRoot = await mkdtemp(join(tmpdir(), 'adonis-bootstrap-files-'))
+  context.after(() => rm(projectRoot, { recursive: true, force: true }))
+
+  const backendRoot = join(projectRoot, 'apps/backend')
+  const frontendRoot = join(projectRoot, 'apps/frontend')
+  await mkdir(join(backendRoot, 'config'), { recursive: true })
+  await mkdir(frontendRoot, { recursive: true })
+  await writeFile(join(projectRoot, '.gitignore'), 'node_modules\n')
+  await writeFile(join(backendRoot, '.env'), 'APP_KEY=secret\n')
+  await writeFile(join(backendRoot, '.prettierignore'), 'build\n')
+  await writeFile(join(backendRoot, 'package.json'), '{"imports":{}}\n')
+
+  const options = {
+    projectName: 'inventory',
+    parentDirectory: tmpdir(),
+    kit: 'api-monorepo',
+    developmentDatabase: 'inventory_dev',
+    testDatabase: 'inventory_test',
+    installNuxt: true,
+    skillsRepository: '/Users/dinko/agent-skills',
+    dryRun: true,
+  }
+  const paths = {
+    projectRoot,
+    backendRoot,
+    backendPrefix: 'apps/backend',
+    frontendRoot,
+    frontendPrefix: 'apps/frontend',
+  }
+
+  await configureProjectFiles(options, paths)
+
+  const rootContext = await readFile(join(projectRoot, 'AGENTS.md'), 'utf8')
+  const codexContext = await readFile(join(frontendRoot, 'AGENTS.md'), 'utf8')
+  const claudeContext = await readFile(join(frontendRoot, 'CLAUDE.md'), 'utf8')
+  const prettierIgnore = await readFile(join(frontendRoot, '.prettierignore'), 'utf8')
+
+  assert.match(rootContext, /apps\/frontend\/AGENTS\.md/)
+  assert.match(codexContext, /\.agents\/skills\/nuxt-frontend\/SKILL\.md/)
+  assert.match(claudeContext, /\.claude\/skills\/nuxt-frontend\/SKILL\.md/)
+  assert.match(prettierIgnore, /^\.agents\/skills\/nuxt-frontend\/$/m)
+  assert.match(prettierIgnore, /^\.claude\/skills\/nuxt-frontend\/$/m)
 })

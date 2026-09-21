@@ -34,6 +34,7 @@ export interface ParsedOptions {
   kit?: Kit
   developmentDatabase?: string
   testDatabase?: string
+  installNuxt?: boolean
   skillsRepository: string
   dryRun: boolean
   help: boolean
@@ -46,6 +47,7 @@ export interface BootstrapOptions {
   kit: Kit
   developmentDatabase: string
   testDatabase: string
+  installNuxt: boolean
   skillsRepository: string
   dryRun: boolean
 }
@@ -54,4 +56,6 @@ export interface ProjectPaths {
   projectRoot: string
   backendRoot: string
   backendPrefix: string
+  frontendRoot?: string
+  frontendPrefix?: string
 }

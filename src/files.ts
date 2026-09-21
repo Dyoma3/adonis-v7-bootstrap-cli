@@ -181,19 +181,63 @@ Do not infer queues, Redis, MCP, or domain invariants unless the repository actu
 `
 }
 
-function monorepoRootContext(agent: 'Codex' | 'Claude Code') {
+function frontendAgentContext(options: BootstrapOptions, agent: 'Codex' | 'Claude Code') {
+  const skillBase = agent === 'Codex' ? '.agents' : '.claude'
+  const skillLabel = agent === 'Codex' ? 'Codex' : 'Claude Code'
+
+  return `# ${options.projectName} Frontend
+
+This workspace contains the project's Nuxt frontend.
+
+## Required Agent Context
+
+Before frontend work, read and follow the local ${skillLabel} skill at
+\`${skillBase}/skills/nuxt-frontend/SKILL.md\`. Treat it as mandatory generic frontend context and
+read its referenced files as directed and relevant to the task.
+
+## Local Conventions
+
+- Run Nuxt, npm, and frontend file operations from \`apps/frontend\`.
+- Inspect the installed Nuxt version, source directory layout, dependencies, configuration, nearby
+  code, and tests before applying generic skill guidance.
+- Product and domain context has not been authored by this bootstrap. If later added under
+  \`.context/\`, prefer those project-specific rules over generic examples.
+
+## Quality Bar
+
+For future changes, use the scripts and test suites actually present in \`package.json\`. Do not
+infer Vuetify, Pinia, Axios, i18n, or domain invariants unless the repository defines them.
+`
+}
+
+function monorepoRootContext(agent: 'Codex' | 'Claude Code', installNuxt: boolean) {
   const filename = agent === 'Codex' ? 'AGENTS.md' : 'CLAUDE.md'
+  const frontendContext = installNuxt
+    ? `\nThe Nuxt frontend lives in \`apps/frontend\`. Run frontend commands and make frontend-specific
+edits from that directory, and read \`apps/frontend/${filename}\` before frontend work.\n`
+    : '\nNo frontend framework was configured by this bootstrap. Do not apply backend conventions to `apps/frontend`.\n'
+
   return `# Monorepo Context
 
 The AdonisJS backend lives in \`apps/backend\`. Run backend commands and make backend-specific edits
-from that directory, and read \`apps/backend/${filename}\` before backend work. Do not apply backend
-conventions to \`apps/frontend\`.
+from that directory, and read \`apps/backend/${filename}\` before backend work.
+${frontendContext}
+Keep backend and frontend conventions scoped to their owning workspace.
 `
 }
 
 async function writeText(path: string, content: string) {
   await mkdir(dirname(path), { recursive: true })
   await writeFile(path, content, 'utf8')
+}
+
+async function readOptionalText(path: string) {
+  try {
+    return await readFile(path, 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return ''
+    throw error
+  }
 }
 
 export async function configureProjectFiles(options: BootstrapOptions, paths: ProjectPaths) {
@@ -242,7 +286,31 @@ export async function configureProjectFiles(options: BootstrapOptions, paths: Pr
   )
 
   if (options.kit === 'api-monorepo') {
-    await writeText(join(paths.projectRoot, 'AGENTS.md'), monorepoRootContext('Codex'))
-    await writeText(join(paths.projectRoot, 'CLAUDE.md'), monorepoRootContext('Claude Code'))
+    await writeText(
+      join(paths.projectRoot, 'AGENTS.md'),
+      monorepoRootContext('Codex', options.installNuxt)
+    )
+    await writeText(
+      join(paths.projectRoot, 'CLAUDE.md'),
+      monorepoRootContext('Claude Code', options.installNuxt)
+    )
+  }
+
+  if (options.installNuxt && paths.frontendRoot) {
+    await writeText(join(paths.frontendRoot, 'AGENTS.md'), frontendAgentContext(options, 'Codex'))
+    await writeText(
+      join(paths.frontendRoot, 'CLAUDE.md'),
+      frontendAgentContext(options, 'Claude Code')
+    )
+
+    const frontendPrettierIgnorePath = join(paths.frontendRoot, '.prettierignore')
+    const frontendPrettierIgnore = await readOptionalText(frontendPrettierIgnorePath)
+    await writeText(
+      frontendPrettierIgnorePath,
+      ensureLines(frontendPrettierIgnore, [
+        '.agents/skills/nuxt-frontend/',
+        '.claude/skills/nuxt-frontend/',
+      ])
+    )
   }
 }
