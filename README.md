@@ -1,31 +1,32 @@
 # AdonisJS v7 Bootstrap CLI
 
-CLI personal y determinístico para crear aplicaciones AdonisJS v7 con la configuración habitual de
-Dinko. Pregunta en cada ejecución por el starter kit y por los nombres de las bases de datos; también
-puede ejecutarse sin interacción mediante flags.
+Personal, deterministic CLI for creating AdonisJS v7 applications using Dinko's standard setup. It
+prompts for the starter kit and database names on every run, and it can also run non-interactively
+using command-line flags.
 
-## Qué configura
+## What it configures
 
-- Ejecuta `npm create adonisjs@latest <proyecto> -- --kit=<kit> --skip-migrations`.
-- En `api-monorepo`, realiza todas las operaciones del backend dentro de `apps/backend`.
-- Configura Lucid con PostgreSQL y deja comentadas las conexiones inactivas en
+- Runs `npm create adonisjs@latest <project> -- --kit=<kit> --skip-migrations`.
+- For `api-monorepo`, performs all backend operations inside `apps/backend`.
+- Configures Lucid with PostgreSQL and keeps inactive connections commented out in
   `config/database.ts`.
-- Elimina `better-sqlite3` mediante npm, sin editar manualmente ningún lockfile.
-- Configura `.env` y `.env.test` con `DB_USER=dinko`, `DB_PASSWORD=` vacío y bases separadas.
-- Crea ambas bases con `createdb`, después de comprobar que ninguna exista.
-- Instala Zod y crea `lib/request_validator.ts` con el helper compartido.
-- Instala y configura `@adonisjs/bouncer` mediante `node ace add @adonisjs/bouncer`.
-- Crea el contexto local de Codex y Claude Code e instala `adonis-v7-backend` como dos git subtrees.
-- No ejecuta migraciones, tests ni el servidor del proyecto generado.
+- Removes `better-sqlite3` through npm without manually editing any lockfile.
+- Configures `.env` and `.env.test` with `DB_USER=dinko`, an empty `DB_PASSWORD=`, and separate
+  databases.
+- Creates both databases with `createdb`, after confirming that neither already exists.
+- Installs Zod and creates `lib/request_validator.ts` with the shared helper.
+- Installs and configures `@adonisjs/bouncer` with `node ace add @adonisjs/bouncer`.
+- Creates local Codex and Claude Code context and installs `adonis-v7-backend` as two Git subtrees.
+- Does not run migrations, tests, or the generated project's server.
 
-## Requisitos
+## Requirements
 
-- Node.js 24 o superior y npm 11 o superior.
-- PostgreSQL CLI (`psql` y `createdb`) con acceso local configurado.
-- Git con nombre y correo configurados para crear los commits de los subtrees.
-- El repositorio `/Users/dinko/agent-skills`, incluyendo `adonis-v7-backend`.
+- Node.js 24 or newer and npm 11 or newer.
+- PostgreSQL CLI (`psql` and `createdb`) with local access configured.
+- Git with a configured user name and email, so the subtree commits can be created.
+- The `/Users/dinko/agent-skills` repository, including `adonis-v7-backend`.
 
-## Desarrollo e instalación global
+## Development and global installation
 
 ```bash
 npm install
@@ -33,15 +34,16 @@ npm test
 npm link
 ```
 
-Luego se puede ejecutar desde cualquier carpeta:
+The command can then be run from any directory:
 
 ```bash
 adonis-v7-bootstrap
 ```
 
-El asistente solicita nombre del proyecto, tipo de aplicación, base de desarrollo y base de test.
+The interactive assistant prompts for the project name, application type, development database, and
+test database.
 
-## Uso no interactivo
+## Non-interactive usage
 
 ```bash
 adonis-v7-bootstrap billing-api \
@@ -51,9 +53,10 @@ adonis-v7-bootstrap billing-api \
   --test-db billing_test
 ```
 
-Los valores aceptados por `--kit` son `hypermedia`, `react`, `vue`, `api` y `api-monorepo`.
+The accepted `--kit` values are `hypermedia`, `react`, `vue`, `api`, and `api-monorepo`.
 
-Para revisar el plan sin crear archivos, instalar paquetes, crear bases ni hacer commits:
+To inspect the plan without creating files, installing packages, creating databases, or making
+commits:
 
 ```bash
 adonis-v7-bootstrap demo \
@@ -63,17 +66,18 @@ adonis-v7-bootstrap demo \
   --dry-run
 ```
 
-Ejecuta `adonis-v7-bootstrap --help` para ver todas las opciones.
+Run `adonis-v7-bootstrap --help` to see every available option.
 
-## Seguridad operacional
+## Operational safety
 
-El CLI rechaza un directorio de destino que no esté vacío y nombres de base fuera del conjunto de
-letras, números y guion bajo. Si una de las bases solicitadas ya existe, se detiene sin crear ninguna.
-Los archivos `.env` y `.env.test` se comprueban con `git check-ignore` antes de crear commits.
+The CLI rejects a non-empty destination directory and database names containing anything other than
+letters, numbers, and underscores. If either requested database already exists, it stops without
+creating either database. It checks `.env` and `.env.test` with `git check-ignore` before creating
+commits.
 
-El bootstrap puede dejar un proyecto parcialmente creado si falla una herramienta externa después
-del scaffold. No borra el proyecto ni bases existentes automáticamente, para evitar pérdida de datos.
+The bootstrap may leave a partially created project if an external tool fails after scaffolding. It
+does not automatically delete the project or existing databases, in order to prevent data loss.
 
-## Licencia
+## License
 
 MIT
