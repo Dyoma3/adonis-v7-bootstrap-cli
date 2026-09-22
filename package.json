@@ -1,6 +1,6 @@
 {
   "name": "adonis-v7-bootstrap-cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Bootstrap AdonisJS v7 projects with PostgreSQL, optional Nuxt, and agent context",
   "type": "module",
   "license": "MIT",

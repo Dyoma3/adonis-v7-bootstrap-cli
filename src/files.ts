@@ -114,15 +114,30 @@ export default dbConfig
 }
 
 export const requestValidatorSource = `import { errors } from '@adonisjs/core'
-import { z } from 'zod'
+import type { z } from 'zod'
 
-export default function validateRequest<T extends z.ZodTypeAny>(schema: T, data: any) {
+export default function validateRequest<T extends z.ZodType>(schema: T, data: any) {
   const parse = schema.safeParse(data)
   if (parse.success) return parse.data
 
   throw errors.E_HTTP_EXCEPTION.invoke({ errors: parse.error.issues }, 422)
 }
 `
+
+export function configureUserAuthFinder(source: string) {
+  const generatedCall = 'withAuthFinder(hash)'
+  const configuredCall = 'withAuthFinder(() => hash.use())'
+  const generatedCallCount = source.split(generatedCall).length - 1
+
+  if (generatedCallCount === 1 && !source.includes(configuredCall)) {
+    return source.replace(generatedCall, configuredCall)
+  }
+  if (generatedCallCount === 0 && source.includes(configuredCall)) return source
+
+  throw new Error(
+    `Expected app/models/user.ts to contain exactly one ${generatedCall} call`
+  )
+}
 
 export function setEnvValues(content: string, values: Record<string, string>) {
   const lines = content.replace(/\r\n/g, '\n').split('\n')
@@ -272,6 +287,11 @@ export async function configureProjectFiles(options: BootstrapOptions, paths: Pr
   await writeText(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`)
 
   await writeText(join(paths.backendRoot, 'lib/request_validator.ts'), requestValidatorSource)
+
+  const userModelPath = join(paths.backendRoot, 'app/models/user.ts')
+  const userModel = await readFile(userModelPath, 'utf8')
+  await writeText(userModelPath, configureUserAuthFinder(userModel))
+
   await writeText(join(paths.backendRoot, 'AGENTS.md'), backendAgentContext(options, 'Codex'))
   await writeText(join(paths.backendRoot, 'CLAUDE.md'), backendAgentContext(options, 'Claude Code'))
 

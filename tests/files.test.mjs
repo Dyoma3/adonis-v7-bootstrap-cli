@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
+  configureUserAuthFinder,
   configureProjectFiles,
   databaseConfigTemplate,
   ensureLines,
@@ -44,9 +45,28 @@ test('adds ignore entries without duplicating them', () => {
   assert.equal(ensureLines('node_modules\n.env\n', ['.env', '.env.test']), 'node_modules\n.env\n.env.test\n')
 })
 
-test('keeps the Luka Zod request validator contract', () => {
+test('uses a type-only import and the current Zod schema base type', () => {
+  assert.match(requestValidatorSource, /import type \{ z \} from 'zod'/)
+  assert.match(requestValidatorSource, /T extends z\.ZodType>/)
+  assert.doesNotMatch(requestValidatorSource, /ZodTypeAny/)
   assert.match(requestValidatorSource, /schema\.safeParse\(data\)/)
   assert.match(requestValidatorSource, /E_HTTP_EXCEPTION\.invoke\(\{ errors: parse\.error\.issues \}, 422\)/)
+})
+
+test('configures the generated user model to resolve the active hash driver', () => {
+  const generated = 'export default class User extends compose(UserSchema, withAuthFinder(hash)) {}\n'
+  const expected =
+    'export default class User extends compose(UserSchema, withAuthFinder(() => hash.use())) {}\n'
+
+  assert.equal(configureUserAuthFinder(generated), expected)
+  assert.equal(configureUserAuthFinder(expected), expected)
+})
+
+test('rejects an unexpected user model instead of modifying unrelated code', () => {
+  assert.throws(
+    () => configureUserAuthFinder('export default class User {}\n'),
+    /exactly one withAuthFinder\(hash\) call/
+  )
 })
 
 test('creates scoped Nuxt context for both agents in a monorepo', async (context) => {
@@ -56,11 +76,16 @@ test('creates scoped Nuxt context for both agents in a monorepo', async (context
   const backendRoot = join(projectRoot, 'apps/backend')
   const frontendRoot = join(projectRoot, 'apps/frontend')
   await mkdir(join(backendRoot, 'config'), { recursive: true })
+  await mkdir(join(backendRoot, 'app/models'), { recursive: true })
   await mkdir(frontendRoot, { recursive: true })
   await writeFile(join(projectRoot, '.gitignore'), 'node_modules\n')
   await writeFile(join(backendRoot, '.env'), 'APP_KEY=secret\n')
   await writeFile(join(backendRoot, '.prettierignore'), 'build\n')
   await writeFile(join(backendRoot, 'package.json'), '{"imports":{}}\n')
+  await writeFile(
+    join(backendRoot, 'app/models/user.ts'),
+    'export default class User extends compose(UserSchema, withAuthFinder(hash)) {}\n'
+  )
 
   const options = {
     projectName: 'inventory',
@@ -86,10 +111,12 @@ test('creates scoped Nuxt context for both agents in a monorepo', async (context
   const codexContext = await readFile(join(frontendRoot, 'AGENTS.md'), 'utf8')
   const claudeContext = await readFile(join(frontendRoot, 'CLAUDE.md'), 'utf8')
   const prettierIgnore = await readFile(join(frontendRoot, '.prettierignore'), 'utf8')
+  const userModel = await readFile(join(backendRoot, 'app/models/user.ts'), 'utf8')
 
   assert.match(rootContext, /apps\/frontend\/AGENTS\.md/)
   assert.match(codexContext, /\.agents\/skills\/nuxt-frontend\/SKILL\.md/)
   assert.match(claudeContext, /\.claude\/skills\/nuxt-frontend\/SKILL\.md/)
   assert.match(prettierIgnore, /^\.agents\/skills\/nuxt-frontend\/$/m)
   assert.match(prettierIgnore, /^\.claude\/skills\/nuxt-frontend\/$/m)
+  assert.match(userModel, /withAuthFinder\(\(\) => hash\.use\(\)\)/)
 })

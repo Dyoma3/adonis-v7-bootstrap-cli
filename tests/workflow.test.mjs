@@ -30,6 +30,7 @@ test('moves all backend work into apps/backend for monorepos', () => {
   assert.equal(paths.frontendRoot, '/tmp/projects/inventory/apps/frontend')
   assert.equal(paths.frontendPrefix, 'apps/frontend')
   assert.ok(plan.includes('Install and configure @adonisjs/bouncer'))
+  assert.ok(plan.includes('Configure the user model with withAuthFinder(() => hash.use())'))
   assert.ok(plan.includes('Leave apps/frontend without a configured framework'))
 })
 

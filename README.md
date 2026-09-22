@@ -16,6 +16,7 @@ to install Nuxt. Every choice can also be supplied non-interactively using comma
   databases.
 - Creates both databases with `createdb`, after confirming that neither already exists.
 - Installs Zod and creates `lib/request_validator.ts` with the shared helper.
+- Configures the generated user model with `withAuthFinder(() => hash.use())`.
 - Installs and configures `@adonisjs/bouncer` with `node ace add @adonisjs/bouncer`.
 - Creates local Codex and Claude Code context and installs `adonis-v7-backend` as two Git subtrees.
 - When Nuxt is selected, creates scoped frontend context and installs

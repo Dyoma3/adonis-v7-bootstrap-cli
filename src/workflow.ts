@@ -30,6 +30,7 @@ export function buildPlan(options: BootstrapOptions, paths = resolveProjectPaths
     'Configure PostgreSQL and remove better-sqlite3',
     'Install Zod and create lib/request_validator.ts',
     'Install and configure @adonisjs/bouncer',
+    'Configure the user model with withAuthFinder(() => hash.use())',
     'Create both PostgreSQL databases with createdb',
     'Create Codex/Claude context and add both backend skill subtrees',
   ]
