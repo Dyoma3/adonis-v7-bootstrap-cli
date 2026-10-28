@@ -50,7 +50,7 @@ export function buildPlan(options: BootstrapOptions, paths = resolveProjectPaths
     plan.splice(
       plan.indexOf('Document the Render deployment in README.md') + 1,
       0,
-      'Run tests without building first in turbo.json'
+      'Make the turbo.json test task depend on ^build instead of build'
     )
   }
 

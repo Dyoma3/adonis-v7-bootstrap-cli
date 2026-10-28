@@ -41,8 +41,8 @@ projects. The package name is `adonis-v7-bootstrap-cli`, and its executable is
 - Install Bouncer through `node ace add @adonisjs/bouncer`.
 - Pin `engines.node` to `24.x` with `npm pkg set` in the root `package.json` and in each configured
   monorepo workspace, before the backend npm commands, so npm syncs the lockfile itself.
-- For `api-monorepo`, remove only the `dependsOn: ["build"]` of the `turbo.json` test task. If the
-  task has an unexpected shape, stop instead of rewriting it.
+- For `api-monorepo`, change only the `turbo.json` test task's `dependsOn: ["build"]` to
+  `["^build"]`. If the task has an unexpected shape, stop instead of rewriting it.
 - Document the Render deployment in the `## Deployment` section of the root `README.md`. Append it
   to an existing README without duplicating it, and point the agent context to it. Deploy commands
   install with `--include=dev`, prune with `--omit=dev`, and never install inside `build/`.

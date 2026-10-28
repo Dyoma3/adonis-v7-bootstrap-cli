@@ -34,7 +34,7 @@ test('moves all backend work into apps/backend for monorepos', () => {
   assert.ok(plan.includes('Leave apps/frontend without a configured framework'))
   assert.ok(plan.includes('Pin Node.js 24.x in the root and workspace package.json engines'))
   assert.ok(plan.includes('Document the Render deployment in README.md'))
-  assert.ok(plan.includes('Run tests without building first in turbo.json'))
+  assert.ok(plan.includes('Make the turbo.json test task depend on ^build instead of build'))
 })
 
 test('pins Node.js and documents the deployment for regular apps', () => {
@@ -42,7 +42,7 @@ test('pins Node.js and documents the deployment for regular apps', () => {
 
   assert.ok(plan.includes('Pin Node.js 24.x in the package.json engines'))
   assert.ok(plan.includes('Document the Render deployment in README.md'))
-  assert.ok(!plan.includes('Run tests without building first in turbo.json'))
+  assert.ok(!plan.includes('Make the turbo.json test task depend on ^build instead of build'))
 })
 
 test('adds Nuxt and its frontend context to the monorepo plan', () => {

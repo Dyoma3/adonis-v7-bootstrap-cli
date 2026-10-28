@@ -91,11 +91,11 @@ test('rejects an unexpected user model instead of modifying unrelated code', () 
   )
 })
 
-test('runs the turbo test task without building first', () => {
+test('makes the turbo test task build only the workspaces it depends on', () => {
   const configured = configureTurboTestTask(starterTurboJson)
   const { tasks } = JSON.parse(configured)
 
-  assert.deepEqual(tasks.test, { cache: false })
+  assert.deepEqual(tasks.test, { dependsOn: ['^build'], cache: false })
   assert.deepEqual(tasks.build.dependsOn, ['^build'])
   assert.equal(configureTurboTestTask(configured), configured)
 })
@@ -105,6 +105,7 @@ test('rejects an unexpected turbo test task instead of rewriting it', () => {
     () => configureTurboTestTask('{"tasks":{"test":{"dependsOn":["build","lint"]}}}'),
     /depend only on "build"/
   )
+  assert.throws(() => configureTurboTestTask('{"tasks":{"test":{}}}'), /depend only on "build"/)
   assert.throws(() => configureTurboTestTask('{"tasks":{}}'), /define a test task/)
 })
 
@@ -229,7 +230,7 @@ test('creates scoped Nuxt context for both agents in a monorepo', async (context
   const backendContext = await readFile(join(backendRoot, 'CLAUDE.md'), 'utf8')
   const turbo = JSON.parse(await readFile(join(projectRoot, 'turbo.json'), 'utf8'))
 
-  assert.deepEqual(turbo.tasks.test, { cache: false })
+  assert.deepEqual(turbo.tasks.test, { dependsOn: ['^build'], cache: false })
   assert.match(readme, /^# inventory\n\n## Deployment\n/)
   assert.match(readme, /### Frontend \(Render static site\)/)
   assert.match(rootContext, /`Deployment` section of the root `README\.md`/)

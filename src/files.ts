@@ -161,21 +161,22 @@ export function ensureLines(content: string, requiredLines: string[]) {
 }
 
 /**
- * Japa runs the tests from the TypeScript sources, so building first only
- * wastes time and stops the run on any type error.
+ * Japa runs the tests from the TypeScript sources, so a workspace does not
+ * need its own build before testing. "^build" still builds the workspaces it
+ * depends on, such as internal packages or the backend a Tuyau frontend imports.
  */
 export function configureTurboTestTask(source: string) {
   const turbo = JSON.parse(source) as { tasks?: Record<string, Record<string, unknown>> }
   const testTask = turbo.tasks?.test
   if (!testTask) throw new Error('Expected turbo.json to define a test task')
 
-  const { dependsOn } = testTask
-  if (dependsOn === undefined) return source
-  if (!Array.isArray(dependsOn) || dependsOn.length !== 1 || dependsOn[0] !== 'build') {
+  const dependsOn = JSON.stringify(testTask.dependsOn)
+  if (dependsOn === '["^build"]') return source
+  if (dependsOn !== '["build"]') {
     throw new Error('Expected the turbo.json test task to depend only on "build"')
   }
 
-  delete testTask.dependsOn
+  testTask.dependsOn = ['^build']
   return `${JSON.stringify(turbo, null, 2)}\n`
 }
 
