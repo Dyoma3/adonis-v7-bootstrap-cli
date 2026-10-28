@@ -32,6 +32,15 @@ test('moves all backend work into apps/backend for monorepos', () => {
   assert.ok(plan.includes('Install and configure @adonisjs/bouncer'))
   assert.ok(plan.includes('Configure the user model with withAuthFinder(() => hash.use())'))
   assert.ok(plan.includes('Leave apps/frontend without a configured framework'))
+  assert.ok(plan.includes('Pin Node.js 24.x in the root and workspace package.json engines'))
+  assert.ok(plan.includes('Document the Render deployment in README.md'))
+})
+
+test('pins Node.js and documents the deployment for regular apps', () => {
+  const plan = buildPlan({ ...baseOptions, kit: 'api' })
+
+  assert.ok(plan.includes('Pin Node.js 24.x in the package.json engines'))
+  assert.ok(plan.includes('Document the Render deployment in README.md'))
 })
 
 test('adds Nuxt and its frontend context to the monorepo plan', () => {
@@ -40,4 +49,8 @@ test('adds Nuxt and its frontend context to the monorepo plan', () => {
 
   assert.ok(plan.includes('Install Nuxt in /tmp/projects/inventory/apps/frontend'))
   assert.ok(plan.includes('Create frontend agent context and add both nuxt-frontend skill subtrees'))
+  assert.ok(
+    plan.indexOf('Install Nuxt in /tmp/projects/inventory/apps/frontend') <
+      plan.indexOf('Pin Node.js 24.x in the root and workspace package.json engines')
+  )
 })

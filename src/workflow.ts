@@ -1,7 +1,7 @@
 import { access, mkdir, readdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { runCommand } from './command.js'
-import { configureProjectFiles } from './files.js'
+import { configureProjectFiles, nodeEngine } from './files.js'
 import type { BootstrapOptions, ProjectPaths } from './types.js'
 
 export function resolveProjectPaths(options: BootstrapOptions): ProjectPaths {
@@ -27,10 +27,14 @@ export function buildPlan(options: BootstrapOptions, paths = resolveProjectPaths
     `Test database: ${options.testDatabase}`,
     `Skills repository: ${options.skillsRepository}`,
     'Scaffold with migrations skipped',
+    options.kit === 'api-monorepo'
+      ? `Pin Node.js ${nodeEngine} in the root and workspace package.json engines`
+      : `Pin Node.js ${nodeEngine} in the package.json engines`,
     'Configure PostgreSQL and remove better-sqlite3',
     'Install Zod and create lib/request_validator.ts',
     'Install and configure @adonisjs/bouncer',
     'Configure the user model with withAuthFinder(() => hash.use())',
+    'Document the Render deployment in README.md',
     'Create both PostgreSQL databases with createdb',
     'Create Codex/Claude context and add both backend skill subtrees',
   ]
@@ -203,6 +207,17 @@ export async function bootstrap(options: BootstrapOptions) {
     if (!(await exists(join(paths.frontendRoot, 'package.json')))) {
       throw new Error(`Could not find the generated Nuxt frontend at ${paths.frontendRoot}`)
     }
+  }
+
+  /**
+   * Pin before the backend npm commands below, so npm itself syncs the
+   * engines recorded in the lockfile.
+   */
+  const packageRoots = [paths.projectRoot]
+  if (paths.backendPrefix) packageRoots.push(paths.backendRoot)
+  if (options.installNuxt && paths.frontendRoot) packageRoots.push(paths.frontendRoot)
+  for (const cwd of packageRoots) {
+    await runCommand('npm', ['pkg', 'set', `engines.node=${nodeEngine}`], { cwd })
   }
 
   await runCommand(

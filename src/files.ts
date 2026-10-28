@@ -160,6 +160,101 @@ export function ensureLines(content: string, requiredLines: string[]) {
   return `${normalized.replace(/\n*$/, '\n')}${missing.join('\n')}\n`
 }
 
+/**
+ * Render resolves an open range such as ">=24" to the newest Node.js release,
+ * so generated projects pin the major version.
+ */
+export const nodeEngine = '24.x'
+
+export function appendMarkdownSection(content: string, section: string) {
+  const normalized = content.replace(/\r\n/g, '\n')
+  const heading = section.split('\n', 1)[0] ?? section
+  if (normalized.split('\n').includes(heading)) {
+    return normalized.endsWith('\n') ? normalized : `${normalized}\n`
+  }
+  if (!normalized.trim()) return section
+  return `${normalized.replace(/\n*$/, '\n')}\n${section}`
+}
+
+function frontendDeploymentSection() {
+  return `
+### Frontend (Render static site)
+
+- **Root Directory:** \`apps/frontend\`
+- **Build Command:** \`npm ci --include=dev && npm run generate\`
+- **Publish Directory:** \`.output/public\`
+- **Build Filters (included paths):** \`apps/frontend/**\`, \`package.json\`, \`package-lock.json\`
+- **Redirects/Rewrites:** Source \`/*\`, Destination \`/200.html\`, Action Rewrite
+
+Why:
+
+- \`npm run generate\` writes the site to \`.output/public\`. With \`ssr: false\`, every HTML file is
+  the same client-side shell; with SSR enabled, Nuxt prerenders the routes it can discover.
+- The rewrite serves the \`200.html\` SPA fallback for routes without a generated file, such as
+  dynamic routes. Render only applies rewrites when no file exists at the requested path, so assets
+  are unaffected.
+- \`--include=dev\` keeps devDependencies installed if the site defines \`NODE_ENV=production\`.
+- \`generate\` bakes \`NUXT_PUBLIC_*\` variables into the build, so define them in the static site.
+`
+}
+
+export function deploymentSection(options: BootstrapOptions) {
+  const isMonorepo = options.kit === 'api-monorepo'
+  const rootDirectory = isMonorepo ? '`apps/backend`' : 'empty (repository root)'
+  const buildFilters = isMonorepo
+    ? '- **Build Filters (included paths):** `apps/backend/**`, `package.json`, `package-lock.json`\n'
+    : ''
+  const noInstallInBuild = isMonorepo
+    ? `- There is no \`npm ci\` inside \`build/\`. The lockfile lives at the repository root, so
+  \`node ace build\` cannot copy one into \`build/\` and \`npm ci\` would fail there. The server
+  resolves the dependencies installed by the build step.`
+    : `- There is no \`npm ci\` inside \`build/\`. Dependencies are installed once by the build step;
+  installing them again inside \`build/\` on every start would slow down each boot.`
+  const filtersNote = isMonorepo
+    ? `- With a Root Directory, Render only autodeploys changes inside it. The Build Filters also deploy
+  changes to the root \`package.json\` and \`package-lock.json\`.\n`
+    : ''
+  const envExample = isMonorepo ? 'apps/backend/.env.example' : '.env.example'
+  const frontend = options.installNuxt
+    ? frontendDeploymentSection()
+    : isMonorepo
+      ? '\n`apps/frontend` has no configured framework yet. Document its service here when you add one.\n'
+      : ''
+
+  return `## Deployment
+
+The project deploys to [Render](https://render.com). These settings live in the Render dashboard;
+update this section whenever you change them.
+
+### Backend (Render web service)
+
+- **Root Directory:** ${rootDirectory}
+- **Build Command:** \`npm ci --include=dev && node ace build && npm prune --omit=dev\`
+- **Start Command:** \`cd build && node bin/server.js\`
+${buildFilters}- **Environment:** the variables from \`${envExample}\`, with \`NODE_ENV=production\` and
+  \`HOST=0.0.0.0\`. Render routes traffic to \`PORT\` (default \`10000\`); do not hardcode it.
+
+Why:
+
+- The service runs with \`NODE_ENV=production\`, which also applies during the build and makes npm
+  skip devDependencies. \`node ace build\` needs them (\`@poppinss/ts-exec\`, \`typescript\`,
+  \`@adonisjs/assembler\`), hence \`--include=dev\`.
+- \`npm prune --omit=dev\` removes the build-only tooling, so the server runs with production
+  dependencies only.
+${noInstallInBuild}
+- \`&&\` stops at the first failing step. A failed build keeps the previous deploy serving.
+${filtersNote}- \`engines.node\` is pinned to \`${nodeEngine}\` in every \`package.json\`. Keep an upper bound: an
+  open range such as \`>=24\` resolves to the newest Node.js release.
+${frontend}`
+}
+
+const deploymentContext = (readme: string) => `
+## Deployment
+
+Render deployment settings are documented in the \`Deployment\` section of ${readme}. Update that
+section whenever the Render configuration changes.
+`
+
 function backendAgentContext(options: BootstrapOptions, agent: 'Codex' | 'Claude Code') {
   const skillBase = agent === 'Codex' ? '.agents' : '.claude'
   const skillLabel = agent === 'Codex' ? 'Codex' : 'Claude Code'
@@ -167,6 +262,7 @@ function backendAgentContext(options: BootstrapOptions, agent: 'Codex' | 'Claude
     options.kit === 'api-monorepo'
       ? '\nRun Adonis, npm, and backend file operations from `apps/backend`.\n'
       : ''
+  const deployment = options.kit === 'api-monorepo' ? '' : deploymentContext('`README.md`')
 
   return `# ${options.projectName} Backend
 
@@ -188,7 +284,7 @@ ${monorepoRule}
   guidance.
 - Product and domain context has not been authored by this bootstrap. If later added under
   \`.context/\`, prefer those project-specific rules over generic examples.
-
+${deployment}
 ## Quality Bar
 
 For future changes, use the scripts and test suites present in \`package.json\` and \`adonisrc.ts\`.
@@ -238,7 +334,7 @@ The AdonisJS backend lives in \`apps/backend\`. Run backend commands and make ba
 from that directory, and read \`apps/backend/${filename}\` before backend work.
 ${frontendContext}
 Keep backend and frontend conventions scoped to their owning workspace.
-`
+${deploymentContext('the root `README.md`')}`
 }
 
 async function writeText(path: string, content: string) {
@@ -294,6 +390,10 @@ export async function configureProjectFiles(options: BootstrapOptions, paths: Pr
 
   await writeText(join(paths.backendRoot, 'AGENTS.md'), backendAgentContext(options, 'Codex'))
   await writeText(join(paths.backendRoot, 'CLAUDE.md'), backendAgentContext(options, 'Claude Code'))
+
+  const readmePath = join(paths.projectRoot, 'README.md')
+  const readme = (await readOptionalText(readmePath)) || `# ${options.projectName}\n`
+  await writeText(readmePath, appendMarkdownSection(readme, deploymentSection(options)))
 
   const prettierIgnorePath = join(paths.backendRoot, '.prettierignore')
   const prettierIgnore = await readFile(prettierIgnorePath, 'utf8')
