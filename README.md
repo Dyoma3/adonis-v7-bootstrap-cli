@@ -21,6 +21,9 @@ to install Nuxt. Every choice can also be supplied non-interactively using comma
 - Pins `engines.node` to `24.x` with `npm pkg set` in the root `package.json` and, for
   `api-monorepo`, in each configured workspace. Render resolves an open range such as `>=24` to the
   newest Node.js release.
+- For `api-monorepo`, removes the starter's `dependsOn: ["build"]` from the `turbo.json` test task.
+  Japa runs the tests from the TypeScript sources, so building first only adds time and stops the
+  run on any type error.
 - Documents the Render deployment in a `## Deployment` section of the root `README.md`: the backend
   web service and, with Nuxt, the static site with its `/200.html` rewrite. The section is appended
   to an existing README once, and the agent context points to it.

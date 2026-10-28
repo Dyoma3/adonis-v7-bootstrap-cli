@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import {
   appendMarkdownSection,
+  configureTurboTestTask,
   configureUserAuthFinder,
   configureProjectFiles,
   databaseConfigTemplate,
@@ -23,6 +24,15 @@ const deploymentOptions = {
   skillsRepository: '/Users/dinko/agent-skills',
   dryRun: true,
 }
+
+const starterTurboJson = `{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": { "dependsOn": ["^build"], "outputs": ["build/**"] },
+    "test": { "dependsOn": ["build"], "cache": false }
+  }
+}
+`
 
 test('generates an active PostgreSQL connection and commented inactive connections', () => {
   const config = databaseConfigTemplate()
@@ -79,6 +89,23 @@ test('rejects an unexpected user model instead of modifying unrelated code', () 
     () => configureUserAuthFinder('export default class User {}\n'),
     /exactly one withAuthFinder\(hash\) call/
   )
+})
+
+test('runs the turbo test task without building first', () => {
+  const configured = configureTurboTestTask(starterTurboJson)
+  const { tasks } = JSON.parse(configured)
+
+  assert.deepEqual(tasks.test, { cache: false })
+  assert.deepEqual(tasks.build.dependsOn, ['^build'])
+  assert.equal(configureTurboTestTask(configured), configured)
+})
+
+test('rejects an unexpected turbo test task instead of rewriting it', () => {
+  assert.throws(
+    () => configureTurboTestTask('{"tasks":{"test":{"dependsOn":["build","lint"]}}}'),
+    /depend only on "build"/
+  )
+  assert.throws(() => configureTurboTestTask('{"tasks":{}}'), /define a test task/)
 })
 
 test('documents a Render backend deployed from the repository root for regular apps', () => {
@@ -164,6 +191,7 @@ test('creates scoped Nuxt context for both agents in a monorepo', async (context
   await mkdir(join(backendRoot, 'app/models'), { recursive: true })
   await mkdir(frontendRoot, { recursive: true })
   await writeFile(join(projectRoot, '.gitignore'), 'node_modules\n')
+  await writeFile(join(projectRoot, 'turbo.json'), starterTurboJson)
   await writeFile(join(backendRoot, '.env'), 'APP_KEY=secret\n')
   await writeFile(join(backendRoot, '.prettierignore'), 'build\n')
   await writeFile(join(backendRoot, 'package.json'), '{"imports":{}}\n')
@@ -199,7 +227,9 @@ test('creates scoped Nuxt context for both agents in a monorepo', async (context
   const userModel = await readFile(join(backendRoot, 'app/models/user.ts'), 'utf8')
   const readme = await readFile(join(projectRoot, 'README.md'), 'utf8')
   const backendContext = await readFile(join(backendRoot, 'CLAUDE.md'), 'utf8')
+  const turbo = JSON.parse(await readFile(join(projectRoot, 'turbo.json'), 'utf8'))
 
+  assert.deepEqual(turbo.tasks.test, { cache: false })
   assert.match(readme, /^# inventory\n\n## Deployment\n/)
   assert.match(readme, /### Frontend \(Render static site\)/)
   assert.match(rootContext, /`Deployment` section of the root `README\.md`/)

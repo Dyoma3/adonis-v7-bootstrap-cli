@@ -161,6 +161,25 @@ export function ensureLines(content: string, requiredLines: string[]) {
 }
 
 /**
+ * Japa runs the tests from the TypeScript sources, so building first only
+ * wastes time and stops the run on any type error.
+ */
+export function configureTurboTestTask(source: string) {
+  const turbo = JSON.parse(source) as { tasks?: Record<string, Record<string, unknown>> }
+  const testTask = turbo.tasks?.test
+  if (!testTask) throw new Error('Expected turbo.json to define a test task')
+
+  const { dependsOn } = testTask
+  if (dependsOn === undefined) return source
+  if (!Array.isArray(dependsOn) || dependsOn.length !== 1 || dependsOn[0] !== 'build') {
+    throw new Error('Expected the turbo.json test task to depend only on "build"')
+  }
+
+  delete testTask.dependsOn
+  return `${JSON.stringify(turbo, null, 2)}\n`
+}
+
+/**
  * Render resolves an open range such as ">=24" to the newest Node.js release,
  * so generated projects pin the major version.
  */
@@ -406,6 +425,9 @@ export async function configureProjectFiles(options: BootstrapOptions, paths: Pr
   )
 
   if (options.kit === 'api-monorepo') {
+    const turboPath = join(paths.projectRoot, 'turbo.json')
+    await writeText(turboPath, configureTurboTestTask(await readFile(turboPath, 'utf8')))
+
     await writeText(
       join(paths.projectRoot, 'AGENTS.md'),
       monorepoRootContext('Codex', options.installNuxt)

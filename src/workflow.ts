@@ -46,6 +46,14 @@ export function buildPlan(options: BootstrapOptions, paths = resolveProjectPaths
     plan.splice(7, 0, 'Leave apps/frontend without a configured framework')
   }
 
+  if (options.kit === 'api-monorepo') {
+    plan.splice(
+      plan.indexOf('Document the Render deployment in README.md') + 1,
+      0,
+      'Run tests without building first in turbo.json'
+    )
+  }
+
   return plan
 }
 
