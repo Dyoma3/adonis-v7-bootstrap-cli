@@ -221,6 +221,7 @@ Why:
 export function deploymentSection(options: BootstrapOptions) {
   const isMonorepo = options.kit === 'api-monorepo'
   const rootDirectory = isMonorepo ? '`apps/backend`' : 'empty (repository root)'
+  const backendDirectory = isMonorepo ? '`apps/backend`' : 'the repository root'
   const buildFilters = isMonorepo
     ? '- **Build Filters (included paths):** `apps/backend/**`, `package.json`, `package-lock.json`\n'
     : ''
@@ -253,6 +254,9 @@ update this section whenever you change them.
 - **Start Command:** \`cd build && node bin/server.js\`
 ${buildFilters}- **Environment:** the variables from \`${envExample}\`, with \`NODE_ENV=production\` and
   \`HOST=0.0.0.0\`. Render routes traffic to \`PORT\` (default \`10000\`); do not hardcode it.
+- **Migrations:** Render does not run them. After deploying a migration, open the service Shell,
+  which starts in ${backendDirectory}, and run \`cd build && node ace migration:run\`. In production
+  Adonis asks for confirmation before migrating.
 
 Why:
 
@@ -262,6 +266,9 @@ Why:
 - \`npm prune --omit=dev\` removes the build-only tooling, so the server runs with production
   dependencies only.
 ${noInstallInBuild}
+- Ace commands, such as migrations, run from \`build/\`. The \`ace.js\` there loads the compiled
+  JavaScript. The one in ${backendDirectory} loads the TypeScript sources through
+  \`@poppinss/ts-exec\`, which \`npm prune\` removed, so it fails with \`ERR_MODULE_NOT_FOUND\`.
 - \`&&\` stops at the first failing step. A failed build keeps the previous deploy serving.
 ${filtersNote}- \`engines.node\` is pinned to \`${nodeEngine}\` in every \`package.json\`. Keep an upper bound: an
   open range such as \`>=24\` resolves to the newest Node.js release.

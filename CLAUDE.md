@@ -45,7 +45,8 @@ projects. The package name is `adonis-v7-bootstrap-cli`, and its executable is
   `["^build"]`. If the task has an unexpected shape, stop instead of rewriting it.
 - Document the Render deployment in the `## Deployment` section of the root `README.md`. Append it
   to an existing README without duplicating it, and point the agent context to it. Deploy commands
-  install with `--include=dev`, prune with `--omit=dev`, and never install inside `build/`.
+  install with `--include=dev`, prune with `--omit=dev`, and never install inside `build/`. Ace
+  commands, such as migrations, run from `build/`, because the prune removes `@poppinss/ts-exec`.
 - Install backend and optional frontend agent skills as independent squash-mode Git subtrees for
   both Codex and Claude Code. Do not replace them with copied directories or symlinks.
 - Never stage or commit generated `.env` files.
