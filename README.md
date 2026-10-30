@@ -26,8 +26,9 @@ to install Nuxt. Every choice can also be supplied non-interactively using comma
   build first; `^build` still builds the workspaces it depends on, such as internal packages or the
   backend a Tuyau frontend imports.
 - Documents the Render deployment in a `## Deployment` section of the root `README.md`: the backend
-  web service and, with Nuxt, the static site with its `/200.html` rewrite. The section is appended
-  to an existing README once, and the agent context points to it.
+  web service, including how to run migrations from `build/`, and, with Nuxt, the static site with
+  its `/200.html` rewrite. The section is appended to an existing README once, and the agent context
+  points to it.
 - Creates local Codex and Claude Code context and installs `adonis-v7-backend` as two Git subtrees.
 - When Nuxt is selected, creates scoped frontend context and installs
   [`nuxt-frontend`](https://github.com/Dyoma3/agent-skills/tree/main/nuxt-frontend) as independent
